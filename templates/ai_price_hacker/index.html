@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Price Hacker - Negotiation</title>
+</head>
+<body>
+    <h1>AI Price Hacker - Freelance Listings</h1>
+    
+    <h2>Freelance Listings</h2>
+    <ul>
+        {% for gig in listings %}
+            <li>
+                <strong>{{ gig.title }}</strong> by {{ gig.seller }} - ${{ gig.price }}
+                ({{ gig.rating }}⭐ from {{ gig.reviews }} reviews)
+            </li>
+        {% endfor %}
+    </ul>
+
+    <h2>Negotiate a Price</h2>
+    <form id="negotiationForm">
+        <label for="product_name">Product Name:</label>
+        <input type="text" id="product_name" name="product_name" required><br><br>
+
+        <label for="original_price">Original Price:</label>
+        <input type="number" id="original_price" name="original_price" required><br><br>
+
+        <label for="target_price">Target Price:</label>
+        <input type="number" id="target_price" name="target_price" required><br><br>
+
+        <label for="seller_type">Seller Type:</label>
+        <select id="seller_type" name="seller_type">
+            <option value="retailer">Retailer</option>
+            <option value="wholesaler">Wholesaler</option>
+        </select><br><br>
+
+        <label for="quantity">Quantity:</label>
+        <input type="number" id="quantity" name="quantity" min="1" required><br><br>
+
+        <label for="is_loyal_customer">Loyal Customer:</label>
+        <input type="checkbox" id="is_loyal_customer" name="is_loyal_customer"><br><br>
+
+        <button type="submit">Negotiate Price</button>
+    </form>
+
+    <h2>Negotiation Result</h2>
+    <p id="result"></p>
+
+    <script>
+        document.getElementById("negotiationForm").onsubmit = async function(event) {
+            event.preventDefault();
+            
+            let formData = {
+                product_name: document.getElementById("product_name").value,
+                original_price: parseFloat(document.getElementById("original_price").value),
+                target_price: parseFloat(document.getElementById("target_price").value),
+                seller_type: document.getElementById("seller_type").value,
+                quantity: parseInt(document.getElementById("quantity").value),
+                is_loyal_customer: document.getElementById("is_loyal_customer").checked
+            };
+
+            let response = await fetch("/negotiate", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(formData)
+            });
+
+            let result = await response.json();
+            document.getElementById("result").innerText = `Negotiated Price: $${result.negotiated_price} (AI Predicted: $${result.ai_predicted_price}, Discount: ${result.discount_applied})`;
+        };
+    </script>
+
+</body>
+</html>

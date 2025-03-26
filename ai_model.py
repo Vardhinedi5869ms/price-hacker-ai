@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from sklearn.linear_model import LinearRegression
+from sklearn.ensemble import RandomForestRegressor
 
 # Simulated dataset of price negotiations
 data = {
@@ -12,16 +12,17 @@ data = {
 # Convert to DataFrame
 df = pd.DataFrame(data)
 
-# Train a simple linear regression model
+# Train a RandomForest model instead of LinearRegression
 X = df[["original_price", "target_price"]]
 y = df["final_price"]
 
-model = LinearRegression()
+model = RandomForestRegressor(n_estimators=100, random_state=42)
 model.fit(X, y)
 
 def predict_price(original_price, target_price):
     """
     Predicts the best possible negotiated price using AI.
     """
-    predicted_price = model.predict([[original_price, target_price]])[0]
+    input_data = pd.DataFrame([[original_price, target_price]], columns=["original_price", "target_price"])
+    predicted_price = model.predict(input_data)[0]
     return round(predicted_price, 2)
