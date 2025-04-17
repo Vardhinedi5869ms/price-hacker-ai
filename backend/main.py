@@ -1,90 +1,86 @@
-import gradio as gr
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 
-# Sample product data
-products = [
-    {"name": "iPhone 15", "price": 80000},
-    {"name": "MacBook Air", "price": 110000},
-    {"name": "Noise Smartwatch", "price": 4000},
-]
+app = FastAPI()
 
-# Extract just the product names for the dropdown
-product_names = [p["name"] for p in products]
+# Enable CORS for frontend-backend communication
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-def get_price(product_name):
-    for product in products:
-        if product["name"] == product_name:
-            return product["price"]
-    return 0
+# Sample product data for platforms
+mock_products = {
+    "amazon": [
+        {"name": "Study Table", "price": 1200},
+        {"name": "Laptop Stand", "price": 900},
+        {"name": "Desk Lamp", "price": 400}
+    ],
+    "flipkart": [
+        {"name": "Office Chair", "price": 3000},
+        {"name": "Bookshelf", "price": 2000},
+        {"name": "Table Mat", "price": 150}
+    ],
+    "ajio": [
+        {"name": "New Balance", "price": 10000},
+        {"name": "Nike Air Max", "price": 12000},
+        {"name": "Adidas Ultraboost", "price": 15000}
+    ],
+    "myntra": [
+        {"name": "Puma Running Shoes", "price": 8000},
+        {"name": "Reebok Classic", "price": 7000},
+        {"name": "Under Armour", "price": 9000}
+    ],
+}
 
-def negotiate_price(platform, product_name, original_price, target_price, seller_type, quantity, loyal_customer):
-    try:
-        original_price = float(original_price)
-        target_price = float(target_price)
-        if loyal_customer:
-            target_price *= 0.95
-        if seller_type == "reseller":
-            target_price *= 0.9
-        if quantity > 5:
-            target_price *= 0.95
-        final_price = max(target_price, original_price * 0.6)
-        return f"Negotiated price for {product_name} on {platform}: ₹{round(final_price, 2)}"
-    except Exception as e:
-        return f"Error: {str(e)}"
+# API Input Model
+class NegotiationRequest(BaseModel):
+    platform: str
+    product: str
+    original_price: float
+    target_price: float
+    seller_type: str
+    quantity: int
+    is_loyal_customer: bool
+    renegotiation_round: int = 0  # New field: default = 0
 
-def autofill_price(product_name):
-    return get_price(product_name)
+# API: Get products for a platform
+@app.get("/get-products/{platform}")
+def get_products(platform: str):
+    return mock_products.get(platform.lower(), [])
 
-with gr.Blocks(theme=gr.themes.Soft()) as demo:
-    gr.Markdown("🤖 **AI Price Negotiation Tool**")
+# API: Negotiate logic
+@app.post("/negotiate/")
+def negotiate(data: NegotiationRequest):
+    # Base discount
+    discount = 0
+    if data.seller_type == "retail":
+        discount += 5
+    if data.is_loyal_customer:
+        discount += 3
+    if data.quantity >= 10:
+        discount += 10
+    elif data.quantity >= 5:
+        discount += 5
 
-    with gr.Row():
-        platform_dropdown = gr.Dropdown(
-            label="Select Platform",
-            choices=["Amazon", "Flipkart"],
-            value="Amazon"
-        )
-        product_dropdown = gr.ComboBox(
-            label="Select Product",
-            choices=product_names,
-            allow_custom_value=True,
-            interactive=True
-        )
+    # Renegotiation bonus (max 2 rounds)
+    if data.renegotiation_round == 1:
+        discount += 2
+    elif data.renegotiation_round >= 2:
+        discount += 1
 
-    with gr.Box():
-        gr.Markdown("**Original Price (auto-filled or manual)**")
-        original_price_input = gr.Number(value=0, label="", interactive=True)
-        gr.Markdown("**Target Price**")
-        target_price_input = gr.Number(value=0, label="", interactive=True)
+    total_price = data.original_price * data.quantity
+    negotiated_price = round(total_price * (1 - discount / 100), 2)
 
-        gr.Markdown("**Seller Type**")
-        seller_type_radio = gr.Radio(choices=["retail", "reseller"], value="retail", label="Seller Type")
-
-        gr.Markdown("**Quantity**")
-        quantity_slider = gr.Slider(minimum=1, maximum=100, value=1, label="Quantity")
-
-        loyal_customer_checkbox = gr.Checkbox(label="Loyal Customer?")
-
-    result_output = gr.Textbox(label="Result", lines=2)
-
-    negotiate_button = gr.Button("Negotiate 🔥")
-
-    # Autofill price when product is selected
-    product_dropdown.change(fn=autofill_price, inputs=product_dropdown, outputs=original_price_input)
-
-    # Trigger negotiation on button click
-    negotiate_button.click(
-        fn=negotiate_price,
-        inputs=[
-            platform_dropdown,
-            product_dropdown,
-            original_price_input,
-            target_price_input,
-            seller_type_radio,
-            quantity_slider,
-            loyal_customer_checkbox
-        ],
-        outputs=result_output
-    )
-
-# Run app
-demo.launch()
+    return {
+        "product": data.product,
+        "platform": data.platform,
+        "negotiated_price": negotiated_price,
+        "discount_percent": discount,
+        "affiliate_link": f"https://affiliate.{data.platform.lower()}.com/{data.product.replace(' ', '-')}",
+        "can_renegotiate": data.renegotiation_round < 2
+    }

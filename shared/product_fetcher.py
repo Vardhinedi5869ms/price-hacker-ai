@@ -1,16 +1,28 @@
 # shared/product_fetcher.py
 
-def get_mock_products(platform):
-    products = {
+def get_mock_products(platform: str):
+    """Returns a list of mock products for the given platform."""
+    mock_products = {
         "amazon": [
-            {"name": "iPhone 15", "price": 80000},
-            {"name": "MacBook Air", "price": 110000},
-            {"name": "Noise Smartwatch", "price": 4000},
+            {"name": "Study Table", "price": 1200},
+            {"name": "Laptop Stand", "price": 900},
+            {"name": "Desk Lamp", "price": 400}
         ],
         "flipkart": [
-            {"name": "Samsung Galaxy S23", "price": 75000},
-            {"name": "HP Laptop", "price": 60000},
-            {"name": "Mi Band 7", "price": 3000},
+            {"name": "Office Chair", "price": 3000},
+            {"name": "Bookshelf", "price": 2000},
+            {"name": "Table Mat", "price": 150}
+        ],
+        "ajio": [
+            {"name": "New Balance", "price": 10000},
+            {"name": "Nike Air Max", "price": 12000},
+            {"name": "Adidas Ultraboost", "price": 15000}
+        ],
+        "myntra": [
+            {"name": "Puma Running Shoes", "price": 8000},
+            {"name": "Reebok Classic", "price": 7000},
+            {"name": "Under Armour", "price": 9000}
         ]
     }
-    return products.get(platform.lower(), [])
+
+    return mock_products.get(platform.lower(), [])

@@ -1,86 +1,98 @@
 import gradio as gr
 import requests
 
-product_cache = {}
+API_URL = "http://127.0.0.1:8000"
 
-def fetch_products(platform):
-    if platform.lower() == "amazon":
-        return [
-            {"name": "iPhone 15", "price": 80000},
-            {"name": "MacBook Air", "price": 110000},
-            {"name": "Noise Smartwatch", "price": 4000}
-        ]
-    elif platform.lower() == "flipkart":
-        return [
-            {"name": "Realme Narzo", "price": 15000},
-            {"name": "Boat Airdopes", "price": 2000},
-            {"name": "Dell Laptop", "price": 75000}
-        ]
-    return []
+def fetch_products(platform, current_value):
+    if not platform:
+        return gr.update(choices=[], value=None), {}
+    try:
+        response = requests.get(f"{API_URL}/get-products/{platform.lower()}")
+        if response.status_code == 200:
+            products = response.json()
+            names = [p["name"] for p in products]
+            prices = {p["name"]: p["price"] for p in products}
+            value = current_value if current_value in names else (names[0] if names else None)
+            return gr.update(choices=names, value=value), prices
+        return gr.update(choices=[], value=None), {}
+    except:
+        return gr.update(choices=[], value=None), {}
 
-def update_products(platform):
-    print(f"[DEBUG] Platform selected: {platform}")
-    products = fetch_products(platform)
-    print(f"[DEBUG] Products fetched: {products}")
-    product_cache[platform] = products
-    return gr.update(choices=[p["name"] for p in products], value=None)
+def autofill_price(product_name, price_dict):
+    return price_dict.get(product_name, 0)
 
-def fill_original_price(product_name, platform):
-    products = product_cache.get(platform, [])
-    for p in products:
-        if p["name"] == product_name:
-            return p["price"]
-    return 0.0
-
-def negotiate(product_name, platform, original_price, target_price, seller_type, quantity, is_loyal_customer):
+def negotiate_price(platform, product, original_price, target_price, seller_type, quantity, is_loyal, attempts):
     payload = {
-        "product_name": product_name,
-        "original_price": original_price,
         "platform": platform,
+        "product": product,
+        "original_price": original_price,
         "target_price": target_price,
         "seller_type": seller_type,
         "quantity": quantity,
-        "is_loyal_customer": is_loyal_customer
+        "is_loyal_customer": is_loyal,
+        "renegotiation_round": attempts  # ✅ FIXED KEY NAME
     }
     try:
-        response = requests.post("http://127.0.0.1:8000/negotiate", json=payload)
-        result = response.json()
+        res = requests.post(f"{API_URL}/negotiate/", json=payload)
+        res_data = res.json()
+        return f"""✅ **Negotiation Summary** (Attempt {attempts}):
 
-        return f"""✅ Negotiation Summary:
+🛍️ **Product:** {res_data['product']}
+🛒 **Platform:** {res_data['platform']}
+📦 **Quantity:** {quantity}
+💰 **Original Price (1 unit):** ₹{original_price}
+📊 **Total Original Price:** ₹{original_price * quantity:.2f}
+🎯 **Negotiated Total Price:** ₹{res_data['negotiated_price']:.2f}
+🔻 **Discount:** {res_data['discount_percent']}%
+💸 **You Saved:** ₹{original_price * quantity - res_data['negotiated_price']:.2f}
+🏷️ **Final Per Unit Price:** ₹{res_data['negotiated_price'] / quantity:.2f}
 
-🛍️ Product: {result['product']}
-🛒 Platform: {result['platform']}
-📦 Quantity: {result['quantity']}
-💰 Original Price (1 unit): ₹{result['original_price']}
-📊 Total Original Price: ₹{result['total_price']}
-🎯 Negotiated Total Price: ₹{result['negotiated_price']}
-🔻 Discount: {result['discount_percent']}%
-💸 You Saved: ₹{result['you_saved']}
-🏷️ Final Per Unit Price: ₹{result['final_per_unit_price']}"""
+🔗 [Click to Buy (Affiliate Link)]({res_data['affiliate_link']})
+"""
     except Exception as e:
-        return f"❌ Error: {str(e)}"
+        return f"❌ Negotiation failed: {str(e)}"
 
-with gr.Blocks(title="Price Negotiation Tool") as demo:
+# UI layout
+with gr.Blocks(theme=gr.themes.Soft()) as demo:
     gr.Markdown("## 🤖 AI Price Negotiation Tool")
+
     with gr.Row():
-        platform = gr.Dropdown(choices=["Amazon", "Flipkart"], label="Select Platform")
-        product_name = gr.Dropdown(choices=[], label="Select Product")
-        platform.change(fn=update_products, inputs=platform, outputs=product_name)
-        product_name.change(fn=fill_original_price, inputs=[product_name, platform], outputs=None)
+        platform = gr.Dropdown(label="Platform", choices=["Amazon", "Flipkart", "Ajio", "Myntra"], value="Amazon")
+        product = gr.Dropdown(label="Select Product", allow_custom_value=True)
+    
+    with gr.Row():
+        original_price = gr.Number(label="Original Price", value=0)
+        target_price = gr.Number(label="Your Target Price", value=0)
 
-    original_price = gr.Number(label="Original Price (auto-filled or manual)")
-    target_price = gr.Number(label="Target Price")
-    seller_type = gr.Radio(choices=["retail", "reseller","business","brand",], label="Seller Type", value="retail")
-    quantity = gr.Slider(1, 100, value=1, label="Quantity")
-    is_loyal_customer = gr.Checkbox(label="Loyal Customer?")
-    submit = gr.Button("Negotiate 🔥")
-    output = gr.Textbox(label="Result")
+    with gr.Row():
+        seller_type = gr.Radio(choices=["retail", "reseller"], value="retail", label="Seller Type")
+        quantity = gr.Slider(minimum=1, maximum=100, step=1, value=1, label="Quantity")
 
-    product_name.change(fn=fill_original_price, inputs=[product_name, platform], outputs=original_price)
-    submit.click(
-        negotiate,
-        inputs=[product_name, platform, original_price, target_price, seller_type, quantity, is_loyal_customer],
-        outputs=output
+    is_loyal = gr.Checkbox(label="Are you a loyal customer?")
+    attempts = gr.Number(value=1, visible=False)  # Used internally for renegotiation tracking
+    result_box = gr.Markdown()
+
+    prices_dict = gr.State({})
+
+    platform.change(fetch_products, inputs=[platform, product], outputs=[product, prices_dict])
+    product.change(autofill_price, inputs=[product, prices_dict], outputs=original_price)
+
+    negotiate_btn = gr.Button("Negotiate Price 💬")
+    renegotiate_btn = gr.Button("Renegotiate 🤝")
+
+    negotiate_btn.click(
+        negotiate_price,
+        inputs=[platform, product, original_price, target_price, seller_type, quantity, is_loyal, attempts],
+        outputs=result_box
+    )
+
+    def increase_attempt(current):
+        return current + 1
+
+    renegotiate_btn.click(increase_attempt, inputs=attempts, outputs=attempts).then(
+        negotiate_price,
+        inputs=[platform, product, original_price, target_price, seller_type, quantity, is_loyal, attempts],
+        outputs=result_box
     )
 
 demo.launch()
