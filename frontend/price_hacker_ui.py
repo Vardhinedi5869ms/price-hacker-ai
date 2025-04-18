@@ -57,7 +57,8 @@ with gr.Blocks(theme=gr.themes.Soft()) as demo:
     gr.Markdown("## 🤖 AI Price Negotiation Tool")
 
     with gr.Row():
-        platform = gr.Dropdown(label="Platform", choices=["Amazon", "Flipkart", "Ajio", "Myntra"], value="Amazon")
+        platform = gr.Dropdown(choices=["amazon", "flipkart", "swiggy", "zomato", "saas"], label="Select Platform")
+
         product = gr.Dropdown(label="Select Product", allow_custom_value=True)
     
     with gr.Row():

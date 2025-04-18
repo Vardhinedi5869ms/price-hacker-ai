@@ -1,4 +1,6 @@
-# product_fetcher.py
+# product_fetcher.py (simplified)
+
+# Reusing product data from main.py (or copying the product data here if needed)
 
 def get_mock_products(platform: str):
     mock_products = {

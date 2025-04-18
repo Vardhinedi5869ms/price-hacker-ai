@@ -1,6 +1,7 @@
 # negotiation_logic.py
 
 import random
+from shared.product_fetcher import get_mock_products
 
 def negotiate(req):
     original_price = req.original_price
@@ -10,10 +11,15 @@ def negotiate(req):
     is_loyal = req.is_loyal_customer
     round_num = req.renegotiation_round
 
+    # Fetch actual product price from mock products to validate consistency
+    actual_products = get_mock_products(req.platform)
+    actual_price_lookup = {p["name"]: p["price"] for p in actual_products}
+    actual_price = actual_price_lookup.get(req.product, original_price)  # fallback to user-sent price
+
     base_discount = 5
 
-    if target_price < original_price:
-        base_discount += ((original_price - target_price) / original_price) * 10
+    if target_price < actual_price:
+        base_discount += ((actual_price - target_price) / actual_price) * 10
 
     if quantity > 5:
         base_discount += 5
@@ -24,18 +30,15 @@ def negotiate(req):
     if seller_type == "reseller":
         base_discount += 2
 
-    # Adjust based on renegotiation rounds
     if round_num == 2:
         base_discount += 2
     elif round_num >= 3:
         base_discount += 1
 
-    # Add randomness
     base_discount += random.uniform(-1, 1)
 
-    # Cap between 5% to 35%
     discount = max(5, min(base_discount, 35))
-    total_price = original_price * quantity
+    total_price = actual_price * quantity
     negotiated_price = total_price * (1 - discount / 100)
 
     affiliate_link = generate_affiliate_link(req.platform, req.product)
