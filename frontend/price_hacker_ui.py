@@ -1,21 +1,23 @@
 import gradio as gr
 import requests
 
-API_URL = "http://127.0.0.1:8000"
+API_URL = "http://127.0.0.1:8000"  # Make sure this matches your backend URL
 
 def fetch_products(platform, current_value):
     if not platform:
         return gr.update(choices=[], value=None), {}
+    
     try:
+        # Send request to fetch products for the selected platform
         response = requests.get(f"{API_URL}/get-products/{platform.lower()}")
         if response.status_code == 200:
             products = response.json()
-            names = [p["name"] for p in products]
-            prices = {p["name"]: p["price"] for p in products}
+            names = [p["name"] for p in products]  # Extract product names
+            prices = {p["name"]: p["price"] for p in products}  # Map product names to their prices
             value = current_value if current_value in names else (names[0] if names else None)
-            return gr.update(choices=names, value=value), prices
+            return gr.update(choices=names, value=value), prices  # Update dropdown choices and prices dictionary
         return gr.update(choices=[], value=None), {}
-    except:
+    except Exception as e:
         return gr.update(choices=[], value=None), {}
 
 def autofill_price(product_name, price_dict):
@@ -30,25 +32,23 @@ def negotiate_price(platform, product, original_price, target_price, seller_type
         "seller_type": seller_type,
         "quantity": quantity,
         "is_loyal_customer": is_loyal,
-        "renegotiation_round": attempts  # ✅ FIXED KEY NAME
+        "renegotiation_round": attempts  # Use attempts to track renegotiation
     }
     try:
         res = requests.post(f"{API_URL}/negotiate/", json=payload)
         res_data = res.json()
         return f"""✅ **Negotiation Summary** (Attempt {attempts}):
-
-🛍️ **Product:** {res_data['product']}
-🛒 **Platform:** {res_data['platform']}
-📦 **Quantity:** {quantity}
-💰 **Original Price (1 unit):** ₹{original_price}
-📊 **Total Original Price:** ₹{original_price * quantity:.2f}
-🎯 **Negotiated Total Price:** ₹{res_data['negotiated_price']:.2f}
-🔻 **Discount:** {res_data['discount_percent']}%
-💸 **You Saved:** ₹{original_price * quantity - res_data['negotiated_price']:.2f}
-🏷️ **Final Per Unit Price:** ₹{res_data['negotiated_price'] / quantity:.2f}
-
-🔗 [Click to Buy (Affiliate Link)]({res_data['affiliate_link']})
-"""
+        🛍️ **Product:** {res_data['product']}
+        🛒 **Platform:** {res_data['platform']}
+        📦 **Quantity:** {quantity}
+        💰 **Original Price (1 unit):** ₹{original_price}
+        📊 **Total Original Price:** ₹{original_price * quantity:.2f}
+        🎯 **Negotiated Total Price:** ₹{res_data['negotiated_price']:.2f}
+        🔻 **Discount:** {res_data['discount_percent']}%
+        💸 **You Saved:** ₹{original_price * quantity - res_data['negotiated_price']:.2f}
+        🏷️ **Final Per Unit Price:** ₹{res_data['negotiated_price'] / quantity:.2f}
+        🔗 [Click to Buy (Affiliate Link)]({res_data['affiliate_link']})
+        """
     except Exception as e:
         return f"❌ Negotiation failed: {str(e)}"
 
@@ -74,7 +74,10 @@ with gr.Blocks(theme=gr.themes.Soft()) as demo:
 
     prices_dict = gr.State({})
 
+    # Fetch product list when platform changes
     platform.change(fetch_products, inputs=[platform, product], outputs=[product, prices_dict])
+
+    # Autofill price when product changes
     product.change(autofill_price, inputs=[product, prices_dict], outputs=original_price)
 
     negotiate_btn = gr.Button("Negotiate Price 💬")

@@ -1,53 +1,59 @@
-# shared/negotiation_logic.py
+# negotiation_logic.py
 
-def calculate_discount(platform, seller_type, quantity, is_loyal):
-    """
-    Determines the discount percentage based on platform, seller type, quantity, and loyalty.
-    """
-    discount = 0
+import random
 
-    # Platform base discounts
-    platform_discounts = {
-        "amazon": 5,
-        "flipkart": 4,
-        "ajio": 6,
-        "myntra": 5,
-    }
-    discount += platform_discounts.get(platform.lower(), 3)
+def negotiate(req):
+    original_price = req.original_price
+    target_price = req.target_price
+    quantity = req.quantity
+    seller_type = req.seller_type
+    is_loyal = req.is_loyal_customer
+    round_num = req.renegotiation_round
 
-    # Seller type effect
-    if seller_type == "reseller":
-        discount += 5
-    elif seller_type == "retail":
-        discount += 2
+    base_discount = 5
 
-    # Quantity tiers
-    if quantity >= 10:
-        discount += 7
-    elif quantity >= 5:
-        discount += 4
-    elif quantity > 1:
-        discount += 2
+    if target_price < original_price:
+        base_discount += ((original_price - target_price) / original_price) * 10
 
-    # Loyalty bonus
+    if quantity > 5:
+        base_discount += 5
+
     if is_loyal:
-        discount += 3
+        base_discount += 3
 
-    return discount
+    if seller_type == "reseller":
+        base_discount += 2
 
-def calculate_negotiated_price(original_price, quantity, discount_percent):
-    """
-    Calculates total and per-unit prices after applying discount.
-    """
+    # Adjust based on renegotiation rounds
+    if round_num == 2:
+        base_discount += 2
+    elif round_num >= 3:
+        base_discount += 1
+
+    # Add randomness
+    base_discount += random.uniform(-1, 1)
+
+    # Cap between 5% to 35%
+    discount = max(5, min(base_discount, 35))
     total_price = original_price * quantity
-    discounted_total = total_price * (1 - discount_percent / 100)
-    per_unit_price = discounted_total / quantity
-    savings = total_price - discounted_total
+    negotiated_price = total_price * (1 - discount / 100)
+
+    affiliate_link = generate_affiliate_link(req.platform, req.product)
 
     return {
-        "total_original_price": round(total_price, 2),
-        "negotiated_price": round(discounted_total, 2),
-        "per_unit_price": round(per_unit_price, 2),
-        "savings": round(savings, 2),
-        "discount_percent": round(discount_percent, 2)
+        "platform": req.platform,
+        "product": req.product,
+        "negotiated_price": round(negotiated_price, 2),
+        "discount_percent": round(discount, 2),
+        "affiliate_link": affiliate_link
     }
+
+def generate_affiliate_link(platform, product):
+    base_urls = {
+        "amazon": "https://amzn.to/demo-affiliate",
+        "flipkart": "https://fkrt.it/demo-affiliate",
+        "zomato": "https://zoma.to/demo-affiliate",
+        "swiggy": "https://swig.gy/demo-affiliate",
+        "saas": "https://saas.com/demo-affiliate"
+    }
+    return base_urls.get(platform.lower(), "https://default.com")

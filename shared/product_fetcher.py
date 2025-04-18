@@ -1,28 +1,31 @@
-# shared/product_fetcher.py
+# product_fetcher.py
 
 def get_mock_products(platform: str):
-    """Returns a list of mock products for the given platform."""
     mock_products = {
-        "amazon": [
-            {"name": "Study Table", "price": 1200},
-            {"name": "Laptop Stand", "price": 900},
-            {"name": "Desk Lamp", "price": 400}
-        ],
-        "flipkart": [
-            {"name": "Office Chair", "price": 3000},
-            {"name": "Bookshelf", "price": 2000},
-            {"name": "Table Mat", "price": 150}
-        ],
-        "ajio": [
-            {"name": "New Balance", "price": 10000},
-            {"name": "Nike Air Max", "price": 12000},
-            {"name": "Adidas Ultraboost", "price": 15000}
-        ],
-        "myntra": [
-            {"name": "Puma Running Shoes", "price": 8000},
-            {"name": "Reebok Classic", "price": 7000},
-            {"name": "Under Armour", "price": 9000}
-        ]
+        "amazon": ["Logitech Mouse", "iPhone Charger", "Study Table"],
+        "flipkart": ["Redmi Phone", "Backpack", "Washing Machine"],
+        "zomato": ["Pizza Combo", "Burger Meal", "Family Dinner Pack"],
+        "swiggy": ["Biryani Combo", "Dessert Box", "Healthy Meal Bowl"],
+        "saas": ["Canva Pro", "Notion AI", "Grammarly Premium"]
     }
 
-    return mock_products.get(platform.lower(), [])
+    mock_prices = {
+        "Logitech Mouse": 500,
+        "iPhone Charger": 1200,
+        "Study Table": 3000,
+        "Redmi Phone": 10000,
+        "Backpack": 1500,
+        "Washing Machine": 25000,
+        "Pizza Combo": 399,
+        "Burger Meal": 299,
+        "Family Dinner Pack": 799,
+        "Biryani Combo": 349,
+        "Dessert Box": 249,
+        "Healthy Meal Bowl": 399,
+        "Canva Pro": 499,
+        "Notion AI": 699,
+        "Grammarly Premium": 899,
+    }
+
+    products = mock_products.get(platform.lower(), [])
+    return [{"name": p, "price": mock_prices.get(p, 0)} for p in products]
